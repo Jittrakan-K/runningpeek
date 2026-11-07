@@ -139,7 +139,7 @@ input:focus-visible+.box{outline:3px solid var(--pink);outline-offset:3px}
   html{-webkit-text-size-adjust:100%}
   body{-webkit-tap-highlight-color:transparent;touch-action:manipulation;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
   .hero{clip-path:polygon(0 0,100% 0,100% calc(100% - 22px),0 100%)}
-  .stage{min-height:min(52vw,230px)}
+  .stage{min-height:min(60vw,260px)}
   .copy{padding-top:14px;padding-bottom:48px;gap:8px}
   h1{font-size:clamp(32px,10vw,42px)}
   #how{font-size:16px}
@@ -461,7 +461,7 @@ function arm(sh,ph,c,s){
   limb(sh,el,.038*s,.03*s,c);limb(el,hd,.03*s,.023*s,c);
 }
 function frame(t){
-  const W=cv._w,H=cv._h,s=Math.min(H*.68,W*.74),cx=W*.54,gy=H*.84;
+  const W=cv._w,H=cv._h,gy=H*.84,s=Math.min(H*.68,W*.74,(gy-10)/1.2),cx=W*.54;
   g.fillStyle=Y;g.fillRect(0,0,W,H);
   /* halftone sun */
   const sx=cx+s*.02,sy=H*.46,R=s*.62,st=Math.max(9,s/34);
