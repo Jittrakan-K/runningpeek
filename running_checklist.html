@@ -314,7 +314,7 @@ const base=commit;
 commit=function(){const n=flat(state),t=Date.now();new Set([...Object.keys(prev),...Object.keys(n)]).forEach(k=>{if(!!prev[k]!==!!n[k])upd[k]=t});prev=n;p(UK,JSON.stringify(upd));base();soon()};
 const msg=$m=>{document.getElementById('syncMsg').textContent=$m};
 const hdr=()=>({Authorization:'Bearer '+g(TK),Accept:'application/vnd.github+json'});
-async function gh(path,opt={}){const r=await fetch(API+path,{...opt,headers:{...hdr(),...(opt.body?{'Content-Type':'application/json'}:{})}});if(!r.ok){const e=new Error(r.status);e.status=r.status;throw e}return r.json()}
+async function gh(path,opt={}){const r=await fetch(API+path,{cache:'no-store',...opt,headers:{...hdr(),...(opt.body?{'Content-Type':'application/json'}:{})}});if(!r.ok){const e=new Error(r.status);e.status=r.status;throw e}return r.json()}
 async function findGist(){
   let id=g(GK);if(id)return id;
   for(let page=1;page<=5;page++){const l=await gh('/gists?per_page=100&page='+page);const f=l.find(x=>x.files&&x.files[FN]);if(f){p(GK,f.id);return f.id}if(l.length<100)break}
@@ -339,7 +339,7 @@ async function run(){
     msg('กำลังซิงก์...');
     const id=await findGist();
     let R={done:{},sat:{},upd:{}};
-    try{const gi=await gh('/gists/'+id);const f=gi.files[FN];let txt=f.content;if(f.truncated)txt=await (await fetch(f.raw_url)).text();R={done:{},sat:{},upd:{},...JSON.parse(txt||'{}')}}
+    try{const gi=await gh('/gists/'+id);const f=gi.files[FN];let txt=f.content;if(f.truncated)txt=await (await fetch(f.raw_url,{cache:'no-store'})).text();R={done:{},sat:{},upd:{},...JSON.parse(txt||'{}')}}
     catch(e){if(e.status===404){p(GK,null);busy=false;return run()}throw e}
     const L={done:state.done,sat:state.sat,upd};
     const M=merge(L,R);
@@ -365,7 +365,9 @@ document.getElementById('syncForm').addEventListener('submit',async e=>{
 if(g(TK)){run()}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)run()});
 addEventListener('online',run);
-setInterval(()=>{if(!document.hidden)run()},60000);
+setInterval(()=>{if(!document.hidden)run()},20000);
+addEventListener('focus',run);
+document.getElementById('syncMsg').addEventListener('click',run);
 })();
 /*/SYNC*/
 
