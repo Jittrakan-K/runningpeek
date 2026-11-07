@@ -111,6 +111,21 @@ input:focus-visible+.box{outline:3px solid var(--pink);outline-offset:3px}
 #syncErr{color:#a8004a;font-weight:600;font-size:14.5px}
 .sheet[hidden],#syncErr[hidden]{display:none}
 /*/SYNC*/
+/*SYNC*/#simBtn{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:30;font:italic 800 17px var(--hit);color:var(--y);background:var(--ink);border:0;padding:11px 18px 12px;cursor:pointer;transform:skewX(-10deg);box-shadow:5px 5px 0 var(--pink)}
+#simBtn:hover{transform:skewX(-10deg) translate(-2px,-2px);box-shadow:7px 7px 0 var(--pink)}
+#simBtn:focus-visible,.simbar button:focus-visible{outline:3px solid var(--y);outline-offset:3px}
+.sim{position:fixed;inset:0;z-index:60;background:rgba(10,10,28,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px}
+.sim[hidden]{display:none}
+.simbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;color:var(--white)}
+.simbar button{font:600 14px var(--text);color:var(--white);background:#2a2950;border:0;padding:8px 14px;cursor:pointer;transform:skewX(-10deg)}
+.simbar button[aria-pressed="true"]{background:var(--y);color:var(--ink)}
+.simbar .x{background:var(--pink)}
+.simbox{position:relative;flex:none}
+.phone{position:absolute;left:0;top:0;transform-origin:0 0;padding:14px;background:#0b0b18;border-radius:46px;box-shadow:0 0 0 3px #3a395f,14px 14px 0 var(--pink)}
+.phone iframe{display:block;border:0;border-radius:32px;background:var(--y)}
+.simnote{color:var(--dim);font-size:13px}
+@media (max-width:760px){#simBtn{display:none}}
+/*/SYNC*/
 #weekNav{display:none}
 @media (max-width:760px){
   html{-webkit-text-size-adjust:100%}
@@ -201,6 +216,12 @@ input:focus-visible+.box{outline:3px solid var(--pink);outline-offset:3px}
   <p id="syncErr" hidden></p>
   <div class="btns"><button class="go" type="submit">เชื่อมการซิงก์</button><button class="q" id="syncOff" type="button" hidden>เลิกซิงก์บนเครื่องนี้</button><button class="q" id="syncClose" type="button">ปิด</button></div>
 </form></div><!--/SYNC-->
+<!--SYNC--><button id="simBtn" type="button" hidden>จำลองมือถือ</button>
+<div class="sim" id="sim" hidden role="dialog" aria-modal="true" aria-label="จำลองหน้าจอมือถือ">
+  <div class="simbar"><span>ขนาดจอ</span><button type="button" data-w="390" data-h="844" aria-pressed="true">iPhone 14</button><button type="button" data-w="375" data-h="667" aria-pressed="false">iPhone SE</button><button type="button" data-w="360" data-h="780" aria-pressed="false">Android</button><button type="button" data-w="430" data-h="932" aria-pressed="false">มือถือจอใหญ่</button><button type="button" class="x" id="simClose">ปิด</button></div>
+  <div class="simbox" id="simBox"><div class="phone" id="phone"><iframe id="simFrame" title="หน้าจอมือถือจำลอง"></iframe></div></div>
+  <p class="simnote">ติ๊กในหน้าจอจำลองได้ ข้อมูลเป็นชุดเดียวกับหน้านี้ กด Esc เพื่อปิด</p>
+</div><!--/SYNC-->
 <nav id="weekNav" aria-label="เลือกสัปดาห์"></nav>
 
 <script>
@@ -387,6 +408,24 @@ addEventListener('online',run);
 setInterval(()=>{if(!document.hidden)run()},20000);
 addEventListener('focus',run);
 document.getElementById('syncMsg').addEventListener('click',run);
+})();
+/*/SYNC*/
+
+/*SYNC*/
+(()=>{
+  const inSim=new URLSearchParams(location.search).has('sim');
+  addEventListener('storage',e=>{if(e.key!==LS||!e.newValue)return;try{const c=JSON.parse(e.newValue);state.done=c.done||{};state.sat=c.sat||{};draw()}catch(x){}});
+  if(inSim){document.getElementById('simBtn').remove();return}
+  const btn=document.getElementById('simBtn'),sim=document.getElementById('sim'),fr=document.getElementById('simFrame'),ph=document.getElementById('phone'),box=document.getElementById('simBox');
+  btn.hidden=false;let W=390,H=844,back=null;
+  function fit(){const fw=W+28,fh=H+28,k=Math.min(1,(innerHeight-160)/fh,(innerWidth-60)/fw);fr.style.width=W+'px';fr.style.height=H+'px';ph.style.transform='scale('+k+')';box.style.width=fw*k+'px';box.style.height=fh*k+'px'}
+  function open(){back=document.activeElement;if(!fr.src)fr.src=location.pathname+'?sim=1';fit();sim.hidden=false;document.body.style.overflow='hidden';document.getElementById('simClose').focus()}
+  function close(){sim.hidden=true;document.body.style.overflow='';back&&back.focus()}
+  btn.addEventListener('click',open);document.getElementById('simClose').addEventListener('click',close);
+  sim.addEventListener('click',e=>{if(e.target===sim)close()});
+  addEventListener('keydown',e=>{if(e.key==='Escape'&&!sim.hidden)close()});
+  addEventListener('resize',()=>{if(!sim.hidden)fit()});
+  sim.querySelectorAll('[data-w]').forEach(b=>b.addEventListener('click',()=>{W=+b.dataset.w;H=+b.dataset.h;sim.querySelectorAll('[data-w]').forEach(x=>x.setAttribute('aria-pressed',x===b));fit()}));
 })();
 /*/SYNC*/
 
