@@ -340,7 +340,16 @@ function merge(L,R){
   return o;
 }
 const same=(a,b)=>JSON.stringify(flat(a))===JSON.stringify(flat(b))&&JSON.stringify(a.upd)===JSON.stringify(b.upd);
-let busy=false,again=false,timer=null;
+let busy=false,again=false,timer=null,es=null,pushed=false;
+const me=Math.random().toString(36).slice(2,10);
+async function topic(){if(!window.crypto?.subtle)return null;const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('running-peak:'+g(TK)));return 'rp-'+[...new Uint8Array(b)].slice(0,12).map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function listen(){
+  if(es){es.close();es=null}
+  const t=g(TK)&&window.EventSource?await topic():null;if(!t)return;
+  es=new EventSource('https://ntfy.sh/'+t+'/sse');
+  es.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.event==='message'&&m.message!==me){[500,2500,7000].forEach(d=>setTimeout(run,d))}}catch(x){}};
+}
+async function ping(){try{const t=await topic();if(t)await fetch('https://ntfy.sh/'+t,{method:'POST',body:me,cache:'no-store'})}catch(e){}}
 async function run(){
   if(!g(TK))return;if(busy){again=true;return}busy=true;
   try{
@@ -352,26 +361,26 @@ async function run(){
     const L={done:state.done,sat:state.sat,upd};
     const M=merge(L,R);
     if(!same(M,L)){state.done=M.done;state.sat=M.sat;upd=M.upd;prev=flat(state);p(UK,JSON.stringify(upd));base()}
-    if(!same(M,R))await gh('/gists/'+id,{method:'PATCH',body:JSON.stringify({files:{[FN]:{content:JSON.stringify(M)}}})});
+    if(!same(M,R)){await gh('/gists/'+id,{method:'PATCH',body:JSON.stringify({files:{[FN]:{content:JSON.stringify(M)}}})});pushed=true}
     const d=new Date();msg('ซิงก์แล้ว '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));
   }catch(e){
     msg(e.status===401?'token ใช้ไม่ได้หรือหมดอายุ กดปุ่มซิงก์เพื่อใส่ใหม่':e.status===403||e.status===429?'GitHub จำกัดการใช้งานชั่วคราว จะลองใหม่อัตโนมัติ':navigator.onLine===false?'ออฟไลน์อยู่ ติ๊กเก็บไว้ในเครื่อง แล้วจะซิงก์เมื่อมีเน็ต':'ซิงก์ไม่สำเร็จ จะลองใหม่อัตโนมัติ');
   }
-  busy=false;if(again){again=false;run()}
+  busy=false;if(pushed){pushed=false;ping()}if(again){again=false;run()}
 }
-function soon(){clearTimeout(timer);timer=setTimeout(run,1200)}
+function soon(){clearTimeout(timer);timer=setTimeout(run,300)}
 const sheet=document.getElementById('syncSheet'),tok=document.getElementById('tok'),err=document.getElementById('syncErr'),off=document.getElementById('syncOff');
 document.getElementById('syncBtn').addEventListener('click',()=>{tok.value='';err.hidden=true;off.hidden=!g(TK);sheet.hidden=false;tok.focus()});
 document.getElementById('syncClose').addEventListener('click',()=>{sheet.hidden=true});
-off.addEventListener('click',()=>{p(TK,null);p(GK,null);sheet.hidden=true;msg('เลิกซิงก์แล้ว ติ๊กจะอยู่แค่ในเครื่องนี้')});
+off.addEventListener('click',()=>{p(TK,null);p(GK,null);if(es){es.close();es=null}sheet.hidden=true;msg('เลิกซิงก์แล้ว ติ๊กจะอยู่แค่ในเครื่องนี้')});
 document.getElementById('syncForm').addEventListener('submit',async e=>{
   e.preventDefault();const v=tok.value.trim();if(!v){err.textContent='วาง token ก่อนกดเชื่อม';err.hidden=false;return}
   const old=g(TK);p(TK,v);p(GK,null);err.hidden=true;
-  try{await gh('/gists?per_page=1');sheet.hidden=true;run()}
+  try{await gh('/gists?per_page=1');sheet.hidden=true;run();listen()}
   catch(x){old?p(TK,old):p(TK,null);err.textContent=x.status===401?'token ไม่ถูกต้อง ลองคัดลอกใหม่อีกครั้ง':x.status===403||x.status===404?'token นี้ไม่มีสิทธิ์ gist ให้สร้างใหม่โดยติ๊ก gist':'เชื่อมต่อ GitHub ไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่';err.hidden=false}
 });
-if(g(TK)){run()}
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)run()});
+if(g(TK)){run();listen()}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){run();if(!es||es.readyState===2)listen()}});
 addEventListener('online',run);
 setInterval(()=>{if(!document.hidden)run()},20000);
 addEventListener('focus',run);
