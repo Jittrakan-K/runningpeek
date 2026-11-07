@@ -415,7 +415,7 @@ document.getElementById('syncMsg').addEventListener('click',run);
 (()=>{
   const inSim=new URLSearchParams(location.search).has('sim');
   addEventListener('storage',e=>{if(e.key!==LS||!e.newValue)return;try{const c=JSON.parse(e.newValue);state.done=c.done||{};state.sat=c.sat||{};draw()}catch(x){}});
-  if(inSim){document.getElementById('simBtn').remove();return}
+  if(inSim){document.getElementById('simBtn').remove();const st=document.createElement('style');st.textContent='html{scrollbar-width:none}html::-webkit-scrollbar,body::-webkit-scrollbar{display:none;width:0}';document.head.append(st);return}
   const btn=document.getElementById('simBtn'),sim=document.getElementById('sim'),fr=document.getElementById('simFrame'),ph=document.getElementById('phone'),box=document.getElementById('simBox');
   btn.hidden=false;let W=390,H=844,back=null;
   function fit(){const fw=W+28,fh=H+28,k=Math.min(1,(innerHeight-160)/fh,(innerWidth-60)/fw);fr.style.width=W+'px';fr.style.height=H+'px';ph.style.transform='scale('+k+')';box.style.width=fw*k+'px';box.style.height=fh*k+'px'}
