@@ -453,7 +453,7 @@ function arm(sh,ph,c,s){
   limb(sh,el,.038*s,.03*s,c);limb(el,hd,.03*s,.023*s,c);
 }
 function frame(t){
-  const W=cv._w,H=cv._h,gy=H*.84,s=Math.min(H*.68,W*.74,(gy-10)/1.2),cx=W*.54;
+  const W=cv._w,H=cv._h,gy=H*.84,s=Math.min(H*.68,W*.74,(gy-(innerWidth<=760?H*.17:10))/1.2),cx=W*.54;
   g.fillStyle=Y;g.fillRect(0,0,W,H);
   /* halftone sun */
   const sx=cx+s*.02,sy=H*.46,R=s*.62,st=Math.max(9,s/34);
