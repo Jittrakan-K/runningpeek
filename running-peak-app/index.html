@@ -320,7 +320,7 @@ const flat=st=>{const o={};for(const k in st.done)o['d:'+k]=1;for(const k in st.
 let prev=flat(state);
 const base=commit;
 commit=function(){const n=flat(state),t=Date.now();new Set([...Object.keys(prev),...Object.keys(n)]).forEach(k=>{if(!!prev[k]!==!!n[k])upd[k]=t});prev=n;p(UK,JSON.stringify(upd));base();soon()};
-const msg=$m=>{document.getElementById('syncMsg').textContent=$m};
+const msg=$m=>show($m);
 const hdr=()=>({Authorization:'Bearer '+g(TK),Accept:'application/vnd.github+json'});
 async function gh(path,opt={}){const r=await fetch(API+path,{cache:'no-store',...opt,headers:{...hdr(),...(opt.body?{'Content-Type':'application/json'}:{})}});if(!r.ok){const e=new Error(r.status);e.status=r.status;throw e}return r.json()}
 async function findGist(){
@@ -339,17 +339,29 @@ function merge(L,R){
   });
   return o;
 }
+function apply(R){const L={done:state.done,sat:state.sat,upd};const M=merge(L,R);if(!same(M,L)){state.done=M.done;state.sat=M.sat;upd=M.upd;prev=flat(state);p(UK,JSON.stringify(upd));base()}return M}
 const same=(a,b)=>JSON.stringify(flat(a))===JSON.stringify(flat(b))&&JSON.stringify(a.upd)===JSON.stringify(b.upd);
 let busy=false,again=false,timer=null,es=null,pushed=false;
 const me=Math.random().toString(36).slice(2,10);
 async function topic(){if(!window.crypto?.subtle)return null;const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('running-peak:'+g(TK)));return 'rp-'+[...new Uint8Array(b)].slice(0,12).map(x=>x.toString(16).padStart(2,'0')).join('')}
+let rt='';const show=t=>{base_msg=t;document.getElementById('syncMsg').textContent=t+(rt?' · '+rt:'')};let base_msg='';
+async function key(){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('running-peak-key:'+g(TK)));return crypto.subtle.importKey('raw',h,'AES-GCM',false,['encrypt','decrypt'])}
+const b64=u=>btoa(String.fromCharCode(...u)),unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+async function seal(){const o={d:Object.keys(state.done),s:Object.keys(state.sat),u:upd},iv=crypto.getRandomValues(new Uint8Array(12));
+  const c=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},await key(),new TextEncoder().encode(JSON.stringify(o))));const a=new Uint8Array(12+c.length);a.set(iv);a.set(c,12);return me+'.'+b64(a)}
+async function open_(t){const a=unb64(t),pl=await crypto.subtle.decrypt({name:'AES-GCM',iv:a.slice(0,12)},await key(),a.slice(12));const o=JSON.parse(new TextDecoder().decode(pl)),d={},sa={};
+  (o.d||[]).forEach(k=>d[k]=state.done[k]||Date.now());(o.s||[]).forEach(k=>sa[k]=true);return{done:d,sat:sa,upd:o.u||{}}}
 async function listen(){
   if(es){es.close();es=null}
   const t=g(TK)&&window.EventSource?await topic():null;if(!t)return;
   es=new EventSource('https://ntfy.sh/'+t+'/sse');
-  es.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.event==='message'&&m.message!==me){[500,2500,7000].forEach(d=>setTimeout(run,d))}}catch(x){}};
+  es.onopen=()=>{rt='เรียลไทม์เชื่อมต่อแล้ว';show(base_msg)};
+  es.onerror=()=>{rt=es&&es.readyState===2?'เรียลไทม์ใช้ไม่ได้ ซิงก์ทุก 20 วินาทีแทน':'กำลังต่อเรียลไทม์...';show(base_msg)};
+  es.onmessage=async e=>{try{const m=JSON.parse(e.data);if(m.event!=='message'||typeof m.message!=='string'||m.message.startsWith(me))return;
+    const i=m.message.indexOf('.');if(i>0){try{apply(await open_(m.message.slice(i+1)));const d=new Date();show('อัปเดตจากอีกเครื่อง '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'));return}catch(x){}}
+    [800,4000].forEach(d=>setTimeout(run,d))}catch(x){}};
 }
-async function ping(){try{const t=await topic();if(t)await fetch('https://ntfy.sh/'+t,{method:'POST',body:me,cache:'no-store'})}catch(e){}}
+async function ping(){try{const t=await topic();if(t)await fetch('https://ntfy.sh/'+t,{method:'POST',body:await seal(),cache:'no-store'})}catch(e){}}
 async function run(){
   if(!g(TK))return;if(busy){again=true;return}busy=true;
   try{
@@ -358,17 +370,15 @@ async function run(){
     let R={done:{},sat:{},upd:{}};
     try{const gi=await gh('/gists/'+id);const f=gi.files[FN];let txt=f.content;if(f.truncated)txt=await (await fetch(f.raw_url,{cache:'no-store'})).text();R={done:{},sat:{},upd:{},...JSON.parse(txt||'{}')}}
     catch(e){if(e.status===404){p(GK,null);busy=false;return run()}throw e}
-    const L={done:state.done,sat:state.sat,upd};
-    const M=merge(L,R);
-    if(!same(M,L)){state.done=M.done;state.sat=M.sat;upd=M.upd;prev=flat(state);p(UK,JSON.stringify(upd));base()}
+    const M=apply(R);
     if(!same(M,R)){await gh('/gists/'+id,{method:'PATCH',body:JSON.stringify({files:{[FN]:{content:JSON.stringify(M)}}})});pushed=true}
     const d=new Date();msg('ซิงก์แล้ว '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));
   }catch(e){
     msg(e.status===401?'token ใช้ไม่ได้หรือหมดอายุ กดปุ่มซิงก์เพื่อใส่ใหม่':e.status===403||e.status===429?'GitHub จำกัดการใช้งานชั่วคราว จะลองใหม่อัตโนมัติ':navigator.onLine===false?'ออฟไลน์อยู่ ติ๊กเก็บไว้ในเครื่อง แล้วจะซิงก์เมื่อมีเน็ต':'ซิงก์ไม่สำเร็จ จะลองใหม่อัตโนมัติ');
   }
-  busy=false;if(pushed){pushed=false;ping()}if(again){again=false;run()}
+  busy=false;pushed=false;if(again){again=false;run()}
 }
-function soon(){clearTimeout(timer);timer=setTimeout(run,300)}
+function soon(){if(g(TK))ping();clearTimeout(timer);timer=setTimeout(run,300)}
 const sheet=document.getElementById('syncSheet'),tok=document.getElementById('tok'),err=document.getElementById('syncErr'),off=document.getElementById('syncOff');
 document.getElementById('syncBtn').addEventListener('click',()=>{tok.value='';err.hidden=true;off.hidden=!g(TK);sheet.hidden=false;tok.focus()});
 document.getElementById('syncClose').addEventListener('click',()=>{sheet.hidden=true});
