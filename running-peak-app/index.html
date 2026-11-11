@@ -117,7 +117,16 @@ input:focus-visible+.box{outline:3px solid var(--pink);outline-offset:3px}
 .sheet .go{font:italic 800 20px var(--hit);background:var(--ink);color:var(--y);border:0;padding:12px 24px;cursor:pointer;transform:skewX(-10deg);box-shadow:5px 5px 0 var(--pink)}
 .sheet .q{font:600 15px var(--text);background:none;border:0;color:var(--ink);text-decoration:underline;cursor:pointer}
 #syncErr{color:#a8004a;font-weight:600;font-size:14.5px}
-.sheet[hidden],#syncErr[hidden]{display:none}
+.sheet[hidden],#syncErr[hidden],#pairBox[hidden]{display:none}
+#pairBox{display:grid;gap:8px;border-top:3px solid var(--ink);padding-top:12px}
+#pairBox .pn{font-size:13.5px}
+#pairQr{width:180px;height:180px;background:var(--white);padding:0}
+#pairQr img,#pairQr canvas{display:block}
+#pairBox .pr{display:flex;gap:8px}#pairBox .pr input{font:12px monospace;padding:8px;min-width:0;flex:1}
+#pairCopy{font:600 14px var(--text);background:var(--ink);color:var(--y);border:0;padding:8px 12px;cursor:pointer;white-space:nowrap}
+#syncChip{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));z-index:25;font:600 13px var(--text);border:0;padding:6px 12px;cursor:pointer;transform:skewX(-10deg);background:var(--ink);color:var(--y);box-shadow:3px 3px 0 var(--pink)}
+#syncChip[data-s="off"],#syncChip[data-s="err"]{background:var(--pink);color:var(--white);box-shadow:3px 3px 0 var(--ink)}
+#syncChip:focus-visible{outline:3px solid var(--pink);outline-offset:3px}
 /*/SYNC*/
 /*SYNC*/#simBtn{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:30;font:italic 800 17px var(--hit);color:var(--y);background:var(--ink);border:0;padding:11px 18px 12px;cursor:pointer;transform:skewX(-10deg);box-shadow:5px 5px 0 var(--pink)}
 #simBtn:hover{transform:skewX(-10deg) translate(-2px,-2px);box-shadow:7px 7px 0 var(--pink)}
@@ -212,6 +221,7 @@ input:focus-visible+.box{outline:3px solid var(--pink);outline-offset:3px}
       <li><b>ถ้าวิ่งน้อยกว่า 15 กม./สัปดาห์</b>ลดเวลาวันจันทร์และวันวิ่งยาวลงราว 20% ใน 3 สัปดาห์แรก</li>
     </ul>
   </section>
+  <!--SYNC--><button id="syncChip" type="button" data-s="off">เครื่องนี้ยังไม่ซิงก์</button><!--/SYNC-->
   <!--SYNC--><div class="sync"><button id="syncBtn" type="button">ซิงก์มือถือกับคอม</button><span id="syncMsg" aria-live="polite">ยังไม่ได้เชื่อมการซิงก์ ติ๊กจะอยู่แค่ในเครื่องนี้</span></div><!--/SYNC-->
   <p id="save" hidden></p>
 </main>
@@ -222,6 +232,7 @@ input:focus-visible+.box{outline:3px solid var(--pink);outline-offset:3px}
   <li>ทำแบบเดียวกันบนอีกเครื่อง ใช้ token เดิมได้</li></ol>
   <label for="tok">GitHub token<input id="tok" type="password" autocomplete="off" spellcheck="false" placeholder="ghp_..."></label>
   <p id="syncErr" hidden></p>
+  <div id="pairBox" hidden><b>เพิ่มเครื่องอื่นด้วยลิงก์นี้</b><p class="pn">สแกน QR หรือเปิดลิงก์บนมือถือ เครื่องนั้นจะซิงก์ทันทีโดยไม่ต้องวาง token ถ้าติดตั้งเป็นแอปบน iPhone ให้เปิดลิงก์ใน Safari ก่อน แล้วค่อยเพิ่มไปยังหน้าจอโฮม ลิงก์นี้มี token อยู่ อย่าส่งให้คนอื่น</p><div id="pairQr"></div><div class="pr"><input id="pairUrl" readonly aria-label="ลิงก์เชื่อมเครื่อง"><button type="button" id="pairCopy">คัดลอกลิงก์</button></div></div>
   <div class="btns"><button class="go" type="submit">เชื่อมการซิงก์</button><button class="q" id="syncOff" type="button" hidden>เลิกซิงก์บนเครื่องนี้</button><button class="q" id="syncClose" type="button">ปิด</button></div>
 </form></div><!--/SYNC-->
 <!--SYNC--><button id="simBtn" type="button" hidden>จำลองมือถือ</button>
@@ -334,13 +345,17 @@ let snapT;weeksEl.addEventListener('scroll',()=>{if(!phone.matches)return;clearT
 
 /*SYNC*/
 (()=>{
+if(new URLSearchParams(location.search).has('sim')){document.querySelector('.sync')?.remove();document.getElementById('syncChip')?.remove();return}
 const TK='run12-gh',GK='run12-gist',UK='run12-upd',FN='running-peak.json',API='https://api.github.com';
 const g=k=>{try{return localStorage.getItem(k)}catch(e){return null}},p=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
-let upd={};try{upd=JSON.parse(g(UK))||{}}catch(e){}
+const chipEl=document.getElementById('syncChip');
+/* pairing link: #pair=<token> */
+if(location.hash.startsWith('#pair=')){try{const v=decodeURIComponent(atob(location.hash.slice(6)));if(v.length>=4){p(TK,v);p(GK,null)}}catch(x){}history.replaceState(null,'',location.pathname+location.search)}
+let upd={};const loadU=()=>{try{upd=JSON.parse(g(UK))||{}}catch(e){upd={}}};loadU();
 const flat=st=>{const o={};for(const k in st.done)o['d:'+k]=1;for(const k in st.sat)o['s:'+k]=1;return o};
 let prev=flat(state);
 const base=commit;
-commit=function(){const n=flat(state),t=Date.now();new Set([...Object.keys(prev),...Object.keys(n)]).forEach(k=>{if(!!prev[k]!==!!n[k])upd[k]=t});prev=n;p(UK,JSON.stringify(upd));base();soon()};
+commit=function(){loadU();const n=flat(state),t=Date.now();new Set([...Object.keys(prev),...Object.keys(n)]).forEach(k=>{if(!!prev[k]!==!!n[k])upd[k]=t});prev=n;p(UK,JSON.stringify(upd));base();soon()};
 const msg=$m=>show($m);
 const hdr=()=>({Authorization:'Bearer '+g(TK),Accept:'application/vnd.github+json'});
 async function gh(path,opt={}){const r=await fetch(API+path,{cache:'no-store',...opt,headers:{...hdr(),...(opt.body?{'Content-Type':'application/json'}:{})}});if(!r.ok){const e=new Error(r.status);e.status=r.status;throw e}return r.json()}
@@ -360,7 +375,7 @@ function merge(L,R){
   });
   return o;
 }
-function apply(R){const L={done:state.done,sat:state.sat,upd};const M=merge(L,R);if(!same(M,L)){state.done=M.done;state.sat=M.sat;upd=M.upd;prev=flat(state);p(UK,JSON.stringify(upd));base()}return M}
+function apply(R){loadU();const L={done:state.done,sat:state.sat,upd};const M=merge(L,R);if(!same(M,L)){state.done=M.done;state.sat=M.sat;upd=M.upd;prev=flat(state);p(UK,JSON.stringify(upd));base()}return M}
 const same=(a,b)=>JSON.stringify(flat(a))===JSON.stringify(flat(b))&&JSON.stringify(a.upd)===JSON.stringify(b.upd);
 let busy=false,again=false,timer=null,es=null,pushed=false;
 const me=Math.random().toString(36).slice(2,10);
@@ -393,37 +408,54 @@ async function run(){
     catch(e){if(e.status===404){p(GK,null);busy=false;return run()}throw e}
     const M=apply(R);
     if(!same(M,R)){await gh('/gists/'+id,{method:'PATCH',body:JSON.stringify({files:{[FN]:{content:JSON.stringify(M)}}})});pushed=true}
-    const d=new Date();msg('ซิงก์แล้ว '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));
+    chip('ok');const d=new Date();msg('ซิงก์แล้ว '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));
   }catch(e){
+    chip(e.status===401?'err':navigator.onLine===false?'ok':'err');
     msg(e.status===401?'token ใช้ไม่ได้หรือหมดอายุ กดปุ่มซิงก์เพื่อใส่ใหม่':e.status===403||e.status===429?'GitHub จำกัดการใช้งานชั่วคราว จะลองใหม่อัตโนมัติ':navigator.onLine===false?'ออฟไลน์อยู่ ติ๊กเก็บไว้ในเครื่อง แล้วจะซิงก์เมื่อมีเน็ต':'ซิงก์ไม่สำเร็จ จะลองใหม่อัตโนมัติ');
   }
   busy=false;pushed=false;if(again){again=false;run()}
 }
 function soon(){if(g(TK))ping();clearTimeout(timer);timer=setTimeout(run,300)}
 const sheet=document.getElementById('syncSheet'),tok=document.getElementById('tok'),err=document.getElementById('syncErr'),off=document.getElementById('syncOff');
-document.getElementById('syncBtn').addEventListener('click',()=>{tok.value='';err.hidden=true;off.hidden=!g(TK);sheet.hidden=false;tok.focus()});
+const pairBox=document.getElementById('pairBox');
+function pairLink(){return location.origin+location.pathname+'#pair='+btoa(encodeURIComponent(g(TK)))}
+function showPair(){pairBox.hidden=!g(TK);if(!g(TK))return;const u=pairLink();document.getElementById('pairUrl').value=u;const q=document.getElementById('pairQr');q.innerHTML='';
+  const draw_=()=>{try{new QRCode(q,{text:u,width:180,height:180,colorDark:'#14132a',colorLight:'#fffefa',correctLevel:QRCode.CorrectLevel.L})}catch(x){q.textContent=''}};
+  if(window.QRCode)draw_();else{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';sc.onload=draw_;document.head.append(sc)}}
+document.getElementById('pairCopy').addEventListener('click',async()=>{const i=document.getElementById('pairUrl');try{await navigator.clipboard.writeText(i.value);document.getElementById('pairCopy').textContent='คัดลอกแล้ว'}catch(x){i.select()}});
+document.getElementById('syncBtn').addEventListener('click',()=>{tok.value='';err.hidden=true;off.hidden=!g(TK);document.getElementById('pairCopy').textContent='คัดลอกลิงก์';showPair();sheet.hidden=false;if(!g(TK))tok.focus()});
 document.getElementById('syncClose').addEventListener('click',()=>{sheet.hidden=true});
-off.addEventListener('click',()=>{p(TK,null);p(GK,null);if(es){es.close();es=null}sheet.hidden=true;msg('เลิกซิงก์แล้ว ติ๊กจะอยู่แค่ในเครื่องนี้')});
+off.addEventListener('click',()=>{p(TK,null);p(GK,null);if(es){es.close();es=null}chip();sheet.hidden=true;msg('เลิกซิงก์แล้ว ติ๊กจะอยู่แค่ในเครื่องนี้')});
 document.getElementById('syncForm').addEventListener('submit',async e=>{
   e.preventDefault();const v=tok.value.trim();if(!v){err.textContent='วาง token ก่อนกดเชื่อม';err.hidden=false;return}
   const old=g(TK);p(TK,v);p(GK,null);err.hidden=true;
-  try{await gh('/gists?per_page=1');sheet.hidden=true;run();listen()}
+  try{await gh('/gists?per_page=1');run();listen();chip();showPair();off.hidden=false;tok.value=''}
   catch(x){old?p(TK,old):p(TK,null);err.textContent=x.status===401?'token ไม่ถูกต้อง ลองคัดลอกใหม่อีกครั้ง':x.status===403||x.status===404?'token นี้ไม่มีสิทธิ์ gist ให้สร้างใหม่โดยติ๊ก gist':'เชื่อมต่อ GitHub ไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่';err.hidden=false}
 });
-if(g(TK)){run();listen()}
+if(g(TK)){run();listen()}chip();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){run();if(!es||es.readyState===2)listen()}});
 addEventListener('online',run);
 setInterval(()=>{if(!document.hidden)run()},20000);
 addEventListener('focus',run);
 document.getElementById('syncMsg').addEventListener('click',run);
+addEventListener('storage',e=>{
+  if(e.key===TK){if(g(TK)){run();listen()}else if(es){es.close();es=null}chip();return}
+  if(e.key!==LS||!e.newValue)return;
+  try{const c=JSON.parse(e.newValue);state.done=c.done||{};state.sat=c.sat||{}}catch(x){return}
+  loadU();const n=flat(state),t=Date.now();let ch=false;
+  new Set([...Object.keys(prev),...Object.keys(n)]).forEach(k=>{if(!!prev[k]!==!!n[k]){ch=true;if(!upd[k]||t-upd[k]>5000)upd[k]=t}});
+  prev=n;p(UK,JSON.stringify(upd));draw();if(ch&&g(TK))soon();
+});
+function chip(state_){const st=state_||(g(TK)?'ok':'off');chipEl.dataset.s=st;chipEl.textContent=st==='ok'?'ซิงก์อยู่':st==='err'?'ซิงก์มีปัญหา':'เครื่องนี้ยังไม่ซิงก์'}
+chipEl.addEventListener('click',()=>document.getElementById('syncBtn').click());
+chip();
 })();
 /*/SYNC*/
 
 /*SYNC*/
 (()=>{
   const inSim=new URLSearchParams(location.search).has('sim');
-  addEventListener('storage',e=>{if(e.key!==LS||!e.newValue)return;try{const c=JSON.parse(e.newValue);state.done=c.done||{};state.sat=c.sat||{};draw()}catch(x){}});
-  if(inSim){document.getElementById('simBtn').remove();const st=document.createElement('style');st.textContent='html{scrollbar-width:none}html::-webkit-scrollbar,body::-webkit-scrollbar{display:none;width:0}';document.head.append(st);return}
+  if(inSim){addEventListener('storage',e=>{if(e.key!==LS||!e.newValue)return;try{const c=JSON.parse(e.newValue);state.done=c.done||{};state.sat=c.sat||{};draw()}catch(x){}});document.getElementById('simBtn').remove();const st=document.createElement('style');st.textContent='html{scrollbar-width:none}html::-webkit-scrollbar,body::-webkit-scrollbar{display:none;width:0}';document.head.append(st);return}
   const btn=document.getElementById('simBtn'),sim=document.getElementById('sim'),fr=document.getElementById('simFrame'),ph=document.getElementById('phone'),box=document.getElementById('simBox');
   btn.hidden=false;let W=390,H=844,back=null;
   function fit(){const fw=W+28,fh=H+28,k=Math.min(1,(innerHeight-160)/fh,(innerWidth-60)/fw);fr.style.width=W+'px';fr.style.height=H+'px';ph.style.transform='scale('+k+')';box.style.width=fw*k+'px';box.style.height=fh*k+'px'}
