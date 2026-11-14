@@ -244,7 +244,7 @@ const PLAN=[
 const PHASE=['สร้างฐาน','สร้างฐาน','สร้างฐาน','ลดโหลด','ฝึกเพซเป้าหมาย','ฝึกเพซเป้าหมาย','ฝึกเพซเป้าหมาย','ลดโหลด','เพิ่มระยะที่เพซเป้าหมาย','เพิ่มระยะที่เพซเป้าหมาย','เพิ่มระยะที่เพซเป้าหมาย','ทดสอบ'];
 const DAYS=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
 const MON=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-const START=new Date(2026,10,2),LS='run12';
+const START=new Date(2026,10,16),LS='run12';
 let state={done:{},sat:{}};
 try{const c=JSON.parse(localStorage.getItem(LS));if(c&&c.done)state={done:c.done,sat:c.sat||{}}}catch(e){}
 const at=(w,d)=>new Date(START.getFullYear(),START.getMonth(),START.getDate()+w*7+d);
@@ -254,7 +254,7 @@ const today=iso(new Date());
 
 const sessions=[];
 PLAN.forEach(([easy,hard,long],w)=>{
-  const k=`w${w+1}-`;
+  const k=`r2w${w+1}-`;
   sessions.push({key:k+'mon',w,off:0,what:`วิ่งเบา ${easy} นาที`,how:'เพซ 6:00–6:30 คุยเป็นประโยคได้'});
   sessions.push({key:k+'wed',w,off:2,what:hard,how:hard===S?'เพซเบา 6:00–6:30':W});
   sessions.push({key:k+'fri',w,off:4,long:true,what:long?`วิ่งยาว ${long} นาที`:'ทดสอบ 5K เป้า 23:45',how:long?'เพซ 6:15–6:45 ช้าและสม่ำเสมอ':'เพซ 4:45 วอร์ม 15 นาที คูลดาวน์ 10 นาที'});
